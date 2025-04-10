@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$AITECH Airdrop | Live Claims Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans">
+    <!-- Navbar -->
+    <nav class="flex justify-between items-center p-4 border-b border-gray-800">
+        <div class="flex items-center space-x-2">
+            <img src="https://th.bing.com/th/id/OIP.M-xb5abbfjeO4zX0qy7plAHaHa?w=160&h=180&c=7&r=0&o=5&pid=1.7" alt="AITECH Logo" class="h-10 w-10">
+            <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">AITECH Airdrop</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <select id="networkSelector" class="bg-gray-800 text-white p-2 rounded-lg border border-gray-700">
+                <option value="eth">Ethereum</option>
+                <option value="bsc">BNB Chain</option>
+                <option value="polygon">Polygon</option>
+            </select>
+            <button id="connectWallet" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium">
+                Connect Wallet
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section with Live Stats -->
+    <section class="py-12 px-4 text-center">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+                    $AITECH Airdrop
+                </span>
+            </h1>
+            <p class="text-xl text-gray-300 mb-8">
+                Hold $AITECH and claim your free tokens. <span id="liveCounter" class="font-bold text-purple-400">0</span> people claimed in the last 5 minutes.
+            </p>
+            
+            <div class="grid md:grid-cols-3 gap-6 mb-10">
+                <div class="bg-gray-800 p-6 rounded-xl">
+                    <p class="text-gray-400 mb-2">Total Distributed</p>
+                    <p class="text-3xl font-bold">1,250,000 <span class="text-blue-400">$AITECH</span></p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl">
+                    <p class="text-gray-400 mb-2">Remaining Tokens</p>
+                    <p class="text-3xl font-bold">3,750,000 <span class="text-purple-400">$AITECH</span></p>
+                </div>
+                <div class="bg-gray-800 p-6 rounded-xl">
+                    <p class="text-gray-400 mb-2">Your Allocation</p>
+                    <p id="userAllocation" class="text-3xl font-bold">0 <span class="text-green-400">$AITECH</span></p>
+                </div>
+            </div>
+            
+            <button id="claimButton" disabled class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-full transition opacity-50 cursor-not-allowed">
+                Connect Wallet to Claim
+            </button>
+        </div>
+    </section>
+
+    <!-- Live Transactions Feed -->
+    <section class="py-8 px-4 max-w-6xl mx-auto">
+        <h2 class="text-3xl font-bold mb-6 text-center">Live Claim Transactions</h2>
+        <div class="bg-gray-800 rounded-xl p-4 max-h-96 overflow-y-auto">
+            <table class="w-full">
+                <thead class="sticky top-0 bg-gray-800 z-10">
+                    <tr class="border-b border-gray-700">
+                        <th class="p-3 text-left">Wallet</th>
+                        <th class="p-3 text-left">Amount</th>
+                        <th class="p-3 text-left">Network</th>
+                        <th class="p-3 text-left">Time</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionsFeed">
+                    <!-- Transactions will appear here dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Eligibility Checker -->
+    <section class="py-12 px-4 max-w-4xl mx-auto">
+        <h2 class="text-3xl font-bold mb-6 text-center">Check Your Eligibility</h2>
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <div class="grid md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-gray-700 p-4 rounded-lg text-center">
+                    <p class="text-gray-400">Wallet Connected</p>
+                    <p id="walletStatus" class="text-xl font-bold text-red-500">No</p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded-lg text-center">
+                    <p class="text-gray-400">$AITECH Held</p>
+                    <p id="aitechBalance" class="text-xl font-bold">0</p>
+                </div>
+                <div class="bg-gray-700 p-4 rounded-lg text-center">
+                    <p class="text-gray-400">Eligible Tokens</p>
+                    <p id="eligibleTokens" class="text-xl font-bold">0</p>
+                </div>
+            </div>
+            <button id="checkEligibility" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition">
+                Verify Eligibility
+            </button>
+        </div>
+    </section>
+
+    <!-- Admin Panel (Hidden by Default) -->
+    <section id="adminPanel" class="py-12 px-4 max-w-4xl mx-auto hidden">
+        <h2 class="text-3xl font-bold mb-6 text-center">Admin Controls</h2>
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <div class="mb-4">
+                <label class="block text-gray-300 mb-2">Airdrop Contract Address</label>
+                <input type="text" id="contractAddress" value="0x..." class="w-full p-3 bg-gray-700 rounded-lg">
+            </div>
+            <button id="distributeTokens" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-bold">
+                Distribute Tokens
+            </button>
+        </div>
+    </section>
+
+    <footer class="py-8 px-4 border-t border-gray-800 text-center text-gray-400">
+        <p>© 2024 Solidus AI Tech. $AITECH Airdrop. All rights reserved.</p>
+    </footer>
+
+    <!-- JavaScript for Dynamic Features -->
+    <script>
+        // ====== Mock Data for Live Transactions ======
+        const networks = ["Ethereum", "BNB Chain", "Polygon"];
+        const mockWallets = [
+            "0x7f...3a4b", "0x1a...9c2d", "0x5e...7f1g", 
+            "0x3b...8h2k", "0x9d...4l6m", "0x2c...5n9p"
+        ];
+
+        // ====== Simulate Live Transactions (WebSocket-like updates) ======
+        function simulateLiveTransactions() {
+            const transactionsFeed = document.getElementById('transactionsFeed');
+            
+            setInterval(() => {
+                const randomWallet = mockWallets[Math.floor(Math.random() * mockWallets.length)];
+                const randomAmount = Math.floor(Math.random() * 5000) + 100;
+                const randomNetwork = networks[Math.floor(Math.random() * networks.length)];
+                const now = new Date().toLocaleTimeString();
+                
+                const newRow = document.createElement('tr');
+                newRow.className = 'border-b border-gray-700 hover:bg-gray-700 transition';
+                newRow.innerHTML = `
+                    <td class="p-3 font-mono">${randomWallet}</td>
+                    <td class="p-3 text-green-400 font-bold">${randomAmount} $AITECH</td>
+                    <td class="p-3">${randomNetwork}</td>
+                    <td class="p-3 text-gray-400">${now}</td>
+                `;
+                
+                transactionsFeed.prepend(newRow);
+                
+                // Update live counter
+                const liveCounter = document.getElementById('liveCounter');
+                liveCounter.textContent = parseInt(liveCounter.textContent) + 1;
+                
+                // Limit displayed transactions
+                if (transactionsFeed.children.length > 10) {
+                    transactionsFeed.removeChild(transactionsFeed.lastChild);
+                }
+            }, 3000); // New transaction every 3 seconds
+        }
+
+        // ====== Wallet Connection & Eligibility Check ======
+        const connectWalletBtn = document.getElementById('connectWallet');
+        const claimButton = document.getElementById('claimButton');
+        const walletStatus = document.getElementById('walletStatus');
+        const adminPanel = document.getElementById('adminPanel');
+
+        connectWalletBtn.addEventListener('click', async () => {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const address = accounts[0];
+                    
+                    walletStatus.textContent = "Yes";
+                    walletStatus.classList.replace('text-red-500', 'text-green-500');
+                    connectWalletBtn.textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                    claimButton.disabled = false;
+                    claimButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    
+                    // Show admin panel if address matches (demo)
+                    if (address === "0xYourAdminAddressHere") {
+                        adminPanel.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error("Wallet connection failed:", error);
+                }
+            } else {
+                alert("Please install MetaMask!");
+            }
+        });
+
+        // ====== Check Eligibility ======
+        document.getElementById('checkEligibility').addEventListener('click', () => {
+            const balance = Math.floor(Math.random() * 5000);
+            document.getElementById('aitechBalance').textContent = `${balance} $AITECH`;
+            
+            if (balance >= 100) {
+                document.getElementById('eligibleTokens').textContent = `${balance * 2} $AITECH`;
+                document.getElementById('userAllocation').textContent = `${balance * 2} $AITECH`;
+            } else {
+                document.getElementById('eligibleTokens').textContent = "Not Eligible";
+            }
+        });
+
+        // ====== Start Live Feed ======
+        simulateLiveTransactions();
+    </script>
+</body>
+</html>
